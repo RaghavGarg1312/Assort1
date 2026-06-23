@@ -5,10 +5,9 @@ export default defineConfig({
   schema: "prisma/schema.prisma",
   migrations: {
     path: "prisma/migrations",
+    seed: "ts-node --compiler-options {\"module\":\"CommonJS\"} prisma/seed.ts",
   },
   datasource: {
-    // In Prisma 7, the migration tool uses the URL defined here.
-    // Since we are running migrations, point this to your unpooled DIRECT_URL.
     url: env("DIRECT_URL"),
   },
 });
