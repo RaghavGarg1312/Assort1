@@ -1,51 +1,52 @@
-import { NextResponse } from 'next/server';
-import type { NextRequest } from 'next/server';
-import { verifyJwt } from '@/lib/auth';
+// src/proxy.ts
+import { NextResponse } from 'next/server'
+import type { NextRequest } from 'next/server'
+import { jwtVerify } from 'jose' 
 
-export function proxy(request: NextRequest) {
-  const token = request.cookies.get('token')?.value;
+export async function proxy(request: NextRequest) {
+  const { pathname } = request.nextUrl
 
-  // Allow unauthenticated access to auth endpoints, except /me
-  if (request.nextUrl.pathname.startsWith('/api/auth')) {
-    if (request.nextUrl.pathname === '/api/auth/me' && !token) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-    return NextResponse.next();
+  // 1. Allow public auth endpoints straight through
+  if (pathname.startsWith('/api/auth') && pathname !== '/api/auth/me') {
+    return NextResponse.next()
   }
 
+  // 2. Extract JWT token from httpOnly cookies
+  const token = request.cookies.get('token')?.value
+
+  // 3. Unauthenticated routes protection
   if (!token) {
-    if (request.nextUrl.pathname.startsWith('/api/')) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    if (pathname.startsWith('/api/') || pathname.startsWith('/dashboard')) {
+      return new NextResponse(
+        JSON.stringify({ error: 'Unauthorized session' }),
+        { status: 401, headers: { 'Content-Type': 'application/json' } }
+      )
     }
-    return NextResponse.redirect(new URL('/login', request.url));
+    return NextResponse.redirect(new URL('/login', request.url))
   }
 
-  const payload = verifyJwt(token) as any;
+  try {
+    // 4. Verify token using edge-compatible 'jose'
+    const secret = new TextEncoder().encode(process.env.JWT_SECRET)
+    const { payload } = await jwtVerify(token, secret)
 
-  if (!payload) {
-    // Token is invalid or expired
-    const response = request.nextUrl.pathname.startsWith('/api/')
-      ? NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-      : NextResponse.redirect(new URL('/login', request.url));
-    
-    // Clear the invalid cookie
-    response.headers.set('Set-Cookie', `token=; HttpOnly; Path=/; SameSite=Strict; Secure; Max-Age=0`);
-    return response;
+    // 5. Inject downstream headers safely
+    const requestHeaders = new Headers(request.headers)
+    requestHeaders.set('x-user-id', payload.userId as string)
+    requestHeaders.set('x-user-email', payload.email as string)
+
+    return NextResponse.next({
+      request: {
+        headers: requestHeaders,
+      },
+    })
+  } catch (error) {
+    const response = NextResponse.redirect(new URL('/login', request.url))
+    response.cookies.delete('token')
+    return response
   }
-
-  // Attach user context to headers
-  const requestHeaders = new Headers(request.headers);
-  requestHeaders.set('x-user-id', payload.userId);
-  if (payload.email) requestHeaders.set('x-user-email', payload.email);
-  if (payload.companyId) requestHeaders.set('x-company-id', payload.companyId);
-
-  return NextResponse.next({
-    request: {
-      headers: requestHeaders,
-    },
-  });
 }
 
 export const config = {
-  matcher: ['/api/:path*', '/dashboard/:path*'],
-};
+  matcher: ['/dashboard/:path*', '/api/:path*'],
+}
