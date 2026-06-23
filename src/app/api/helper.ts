@@ -9,7 +9,7 @@ export async function getAuthUser(request: Request) {
 
   const user = await prisma.user.findUnique({
     where: { id: userId },
-    select: { id: true, companyId: true, baseLevel: true, status: true },
+    select: { id: true, companyId: true, departmentId: true, baseLevel: true, status: true },
   });
 
   if (!user || !user.companyId) {
