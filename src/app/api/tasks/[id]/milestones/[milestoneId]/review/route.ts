@@ -18,21 +18,24 @@ export async function POST(
   if (userOrResponse instanceof NextResponse) return userOrResponse;
   const { id: userId, companyId, baseLevel } = userOrResponse;
 
-  if (baseLevel !== 'MANAGER' && baseLevel !== 'ADMIN') {
-    return NextResponse.json({ error: 'Only MANAGER or ADMIN can review milestones' }, { status: 403 });
-  }
-
   const params = await props.params;
   const { id: taskId, milestoneId } = params;
 
   try {
     const task = await prisma.task.findUnique({
       where: { id: taskId },
-      include: { milestones: { where: { id: milestoneId } } },
+      include: { 
+        milestones: { where: { id: milestoneId } },
+        assignee: true
+      },
     });
 
     if (!task || task.milestones.length === 0) {
       return NextResponse.json({ error: 'Task or Milestone not found' }, { status: 404 });
+    }
+
+    if (task.createdById !== userId && baseLevel !== 'ADMIN' && task.assignee?.managerId !== userId) {
+      return NextResponse.json({ error: 'Only task creator, ADMIN, or assignee\'s manager can review milestones' }, { status: 403 });
     }
 
     const milestone = task.milestones[0];

@@ -129,7 +129,8 @@ export default function TaskDetailPage() {
   };
 
   const isManagerOrAdmin = user?.baseLevel === 'MANAGER' || user?.baseLevel === 'ADMIN';
-  const canManageMilestones = task?.createdById === user?.id || isManagerOrAdmin;
+  const isManagerInChain = task?.assignee?.managerId === user?.id;
+  const canManageMilestones = task?.createdById === user?.id || user?.baseLevel === 'ADMIN' || isManagerInChain;
 
   if (loading) return <Shell><div style={{padding:'32px',color:'#434655'}}>Loading...</div></Shell>;
   if (error || !task) return <Shell><div style={{padding:'32px',color:'#e11d48'}}>{error || 'Task not found'}</div></Shell>;
@@ -307,7 +308,7 @@ export default function TaskDetailPage() {
             </div>
 
             {/* Actions */}
-            {isManagerOrAdmin && (
+            {canManageMilestones && (
               <div style={{backgroundColor:'white',border:'1px solid #c3c6d7',borderRadius:'12px',padding:'24px',boxShadow:'0 1px 3px rgba(0,0,0,0.08)'}}>
                 <h2 style={{fontSize:'16px',fontWeight:600,color:'#131b2e',marginBottom:'16px',marginTop:0}}>Actions</h2>
                 <div style={{display:'flex',flexDirection:'column',gap:'8px'}}>

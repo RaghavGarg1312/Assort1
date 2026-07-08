@@ -7,7 +7,11 @@ import { z } from 'zod';
 
 const createMilestoneSchema = z.object({
   name: z.string().min(1),
-  dueDate: z.string().refine((date) => new Date(date).getTime() > Date.now(), 'dueDate must be in the future'),
+  dueDate: z.string().refine((date) => {
+    const d = new Date(date);
+    if (isNaN(d.getTime())) return false;
+    return d.getTime() >= Date.now() - 24 * 60 * 60 * 1000;
+  }, 'dueDate must be today or in the future'),
 });
 
 export async function POST(request: Request, props: { params: Promise<{ id: string }> }) {
@@ -22,14 +26,14 @@ export async function POST(request: Request, props: { params: Promise<{ id: stri
   try {
     const task = await prisma.task.findUnique({
       where: { id: taskId },
-      include: { milestones: { select: { position: true } } },
+      include: { milestones: { select: { position: true } }, assignee: true },
     });
 
     if (!task) return NextResponse.json({ error: 'Task not found' }, { status: 404 });
     await requireSameCompany(userId, task.companyId);
 
-    if (task.createdById !== userId && baseLevel !== 'MANAGER' && baseLevel !== 'ADMIN') {
-      return NextResponse.json({ error: 'Forbidden. Only task creator or MANAGER+ can add milestones.' }, { status: 403 });
+    if (task.createdById !== userId && baseLevel !== 'ADMIN' && task.assignee?.managerId !== userId) {
+      return NextResponse.json({ error: 'Forbidden. Only task creator, ADMIN, or assignee\'s manager can add milestones.' }, { status: 403 });
     }
 
     if (task.state === TaskState.COMPLETED) {

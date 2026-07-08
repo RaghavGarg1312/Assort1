@@ -93,9 +93,9 @@ const createTaskSchema = z.object({
   dueDate: z.string().refine((date) => {
     const d = new Date(date);
     if (isNaN(d.getTime())) return false;
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    return d.getTime() >= today.getTime();
+    // 24-hour buffer handles global timezone edge cases where
+    // a user's "today" is the server's "yesterday".
+    return d.getTime() >= Date.now() - 24 * 60 * 60 * 1000;
   }, 'dueDate must be today or in the future'),
   assigneeId: z.string().nullable().optional(),
   taskStatusId: z.string(),

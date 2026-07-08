@@ -7,7 +7,11 @@ import { z } from 'zod';
 
 const updateMilestoneSchema = z.object({
   name: z.string().min(1).optional(),
-  dueDate: z.string().refine((date) => new Date(date).getTime() > Date.now(), 'dueDate must be in the future').optional(),
+  dueDate: z.string().refine((date) => {
+    const d = new Date(date);
+    if (isNaN(d.getTime())) return false;
+    return d.getTime() >= Date.now() - 24 * 60 * 60 * 1000;
+  }, 'dueDate must be today or in the future').optional(),
 });
 
 export async function PATCH(request: Request, props: { params: Promise<{ id: string; milestoneId: string }> }) {
@@ -22,7 +26,10 @@ export async function PATCH(request: Request, props: { params: Promise<{ id: str
   try {
     const task = await prisma.task.findUnique({
       where: { id: taskId },
-      include: { milestones: { where: { id: milestoneId } } },
+      include: {
+        milestones: { where: { id: milestoneId } },
+        assignee: true
+      },
     });
 
     if (!task || task.milestones.length === 0) {
@@ -30,8 +37,8 @@ export async function PATCH(request: Request, props: { params: Promise<{ id: str
     }
     await requireSameCompany(userId, task.companyId);
 
-    if (task.createdById !== userId && baseLevel !== 'MANAGER' && baseLevel !== 'ADMIN') {
-      return NextResponse.json({ error: 'Forbidden. Only task creator or MANAGER+ can edit milestones.' }, { status: 403 });
+    if (task.createdById !== userId && baseLevel !== 'ADMIN' && task.assignee?.managerId !== userId) {
+      return NextResponse.json({ error: 'Forbidden. Only task creator, ADMIN, or assignee\'s manager can edit milestones.' }, { status: 403 });
     }
 
     const milestone = task.milestones[0];
@@ -92,7 +99,9 @@ export async function DELETE(request: Request, props: { params: Promise<{ id: st
     const task = await prisma.task.findUnique({
       where: { id: taskId },
       include: {
+        assignee: true,
         milestones: {
+          orderBy: { position: 'asc' },
           include: { _count: { select: { submissions: true } } },
         },
       },
@@ -108,8 +117,8 @@ export async function DELETE(request: Request, props: { params: Promise<{ id: st
       return NextResponse.json({ error: 'Milestone not found' }, { status: 404 });
     }
 
-    if (task.createdById !== userId && baseLevel !== 'MANAGER' && baseLevel !== 'ADMIN') {
-      return NextResponse.json({ error: 'Forbidden. Only task creator or MANAGER+ can delete milestones.' }, { status: 403 });
+    if (task.createdById !== userId && baseLevel !== 'ADMIN' && task.assignee?.managerId !== userId) {
+      return NextResponse.json({ error: 'Forbidden. Only task creator, ADMIN, or assignee\'s manager can delete milestones.' }, { status: 403 });
     }
 
     if (task.milestones.length <= 2) {

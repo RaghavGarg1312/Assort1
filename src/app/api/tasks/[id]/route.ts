@@ -84,12 +84,15 @@ export async function PATCH(request: Request, props: { params: Promise<{ id: str
   const { id } = params;
 
   try {
-    const task = await prisma.task.findUnique({ where: { id } });
+    const task = await prisma.task.findUnique({ 
+      where: { id },
+      include: { assignee: true }
+    });
     if (!task) return NextResponse.json({ error: 'Task not found' }, { status: 404 });
     await requireSameCompany(userId, task.companyId);
 
-    if (task.createdById !== userId && baseLevel !== 'MANAGER' && baseLevel !== 'ADMIN') {
-      return NextResponse.json({ error: 'Forbidden. Only task creator or MANAGER+ can edit tasks.' }, { status: 403 });
+    if (task.createdById !== userId && baseLevel !== 'ADMIN' && task.assignee?.managerId !== userId) {
+      return NextResponse.json({ error: 'Forbidden. Only task creator, ADMIN, or the assignee\'s manager can edit tasks.' }, { status: 403 });
     }
 
     if (task.state === TaskState.COMPLETED) {
@@ -193,13 +196,13 @@ export async function DELETE(request: Request, props: { params: Promise<{ id: st
   try {
     const task = await prisma.task.findUnique({
       where: { id },
-      include: { milestones: true },
+      include: { milestones: true, assignee: true },
     });
     if (!task) return NextResponse.json({ error: 'Task not found' }, { status: 404 });
     await requireSameCompany(userId, task.companyId);
 
-    if (task.createdById !== userId && baseLevel !== 'ADMIN') {
-      return NextResponse.json({ error: 'Forbidden. Only task creator or ADMIN can archive tasks.' }, { status: 403 });
+    if (task.createdById !== userId && baseLevel !== 'ADMIN' && task.assignee?.managerId !== userId) {
+      return NextResponse.json({ error: 'Forbidden. Only task creator, ADMIN, or the assignee\'s manager can archive tasks.' }, { status: 403 });
     }
 
     const hasPendingMilestones = task.milestones.some(
