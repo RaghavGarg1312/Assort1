@@ -40,7 +40,7 @@ export async function GET(request: Request) {
 }
 
 const createCompanySchema = z.object({
-  name: z.string().min(1),
+  name: z.string().trim().min(1),
   timezone: z.string().optional(),
   adminName: z.string().min(1),
   adminEmail: z.string().email(),

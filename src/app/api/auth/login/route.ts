@@ -40,6 +40,16 @@ export async function POST(request: Request) {
       data: { lastLoginAt: new Date() }
     });
 
+    if (user.baseLevel === 'ADMIN' && user.companyId) {
+      const company = await prisma.company.findUnique({ where: { id: user.companyId } });
+      if (company?.status === 'PENDING_SETUP') {
+        await prisma.company.update({
+          where: { id: user.companyId },
+          data: { status: 'ACTIVE' }
+        });
+      }
+    }
+
     const token = signJwt({ 
       userId: user.id, 
       email: user.email, 

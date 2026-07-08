@@ -16,6 +16,19 @@ export async function computeUserStats(userId: string, companyId: string) {
     orderBy: { updatedAt: 'asc' }, // for streak calculation
   });
 
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { baseLevel: true }
+  });
+
+  let totalUsers = 0;
+  let totalDepartments = 0;
+
+  if (user?.baseLevel === 'ADMIN') {
+    totalUsers = await prisma.user.count({ where: { companyId } });
+    totalDepartments = await prisma.department.count({ where: { companyId } });
+  }
+
   let tasksCompleted = 0;
   let activeTasks = 0;
   let overdueTasks = 0;
@@ -108,5 +121,6 @@ export async function computeUserStats(userId: string, companyId: string) {
     activeTasks,
     overdueTasks,
     averageManagerReviewTurnaround: Math.round(averageManagerReviewTurnaround * 10) / 10,
+    ...(user?.baseLevel === 'ADMIN' ? { totalUsers, totalDepartments } : {})
   };
 }

@@ -23,7 +23,7 @@ export async function PATCH(request: Request, props: { params: Promise<{ id: str
       // 1. Create company
       const company = await tx.company.create({
         data: {
-          name: demoRequest.companyName,
+          name: demoRequest.companyName.trim(),
           status: CompanyStatus.PENDING_SETUP,
         },
       });
