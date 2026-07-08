@@ -38,11 +38,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const res = await fetch('/api/auth/me');
       if (res.ok) {
         const data = await res.json();
-        let baseLvl = data.user.baseLevel;
-        if (!data.user.companyId) {
-          baseLvl = 'SUPERADMIN';
-        }
-        setUser({ ...data.user, baseLevel: baseLvl });
+        setUser(data.user);
       } else {
         setUser(null);
         if (!pathname.startsWith('/login') && !pathname.startsWith('/register') && !pathname.startsWith('/forgot-password') && !pathname.startsWith('/reset-password')) {

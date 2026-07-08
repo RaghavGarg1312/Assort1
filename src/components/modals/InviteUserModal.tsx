@@ -7,26 +7,41 @@ interface Props {
 }
 
 export default function InviteUserModal({ onClose, onSuccess }: Props) {
-  const [form, setForm] = useState({ email: '', name: '', baseLevel: 'MEMBER', departmentId: '', managerId: '', designation: '' });
+  const [form, setForm] = useState({ email: '', name: '', roleId: '', departmentId: '', managerId: '', designation: '' });
   const [departments, setDepartments] = useState<any[]>([]);
+  const [roles, setRoles] = useState<any[]>([]);
   const [managers, setManagers] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
   useEffect(() => {
-    fetch('/api/departments').then(r => r.json()).then(data => setDepartments(data.departments || data || []));
-    fetch('/api/users?baseLevel=MANAGER').then(r => r.json()).then(data => setManagers(data.users || data || []));
+    fetch('/api/departments').then(r => r.json()).then(data => {
+      setDepartments(Array.isArray(data) ? data : (data?.departments || []));
+    }).catch(() => setDepartments([]));
+    
+    fetch('/api/roles').then(r => r.json()).then(data => {
+       const fetchedRoles = Array.isArray(data) ? data : [];
+       setRoles(fetchedRoles);
+       if (fetchedRoles.length > 0) {
+          setForm(f => ({ ...f, roleId: fetchedRoles[0].id }));
+       }
+    }).catch(() => setRoles([]));
+
+    fetch('/api/users?baseLevel=MANAGER').then(r => r.json()).then(data => {
+      setManagers(Array.isArray(data) ? data : (data?.users || []));
+    }).catch(() => setManagers([]));
   }, []);
 
   const handleInvite = async () => {
     if (!form.email || !form.name) { setError('Name and email are required'); return; }
+    if (!form.roleId) { setError('Role is required'); return; }
     setLoading(true);
     setError('');
     try {
       const body: any = {
         email: form.email,
         name: form.name,
-        baseLevel: form.baseLevel,
+        roleId: form.roleId,
       };
       if (form.departmentId) body.departmentId = form.departmentId;
       if (form.managerId) body.managerId = form.managerId;
@@ -45,6 +60,8 @@ export default function InviteUserModal({ onClose, onSuccess }: Props) {
       setLoading(false);
     }
   };
+
+  const selectedRole = Array.isArray(roles) ? roles.find(r => r.id === form.roleId) : undefined;
 
   return (
     <div style={{position:'fixed',inset:0,backgroundColor:'rgba(0,0,0,0.5)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:9999}}>
@@ -70,11 +87,13 @@ export default function InviteUserModal({ onClose, onSuccess }: Props) {
               style={{width:'100%',padding:'8px 12px',backgroundColor:'#f2f3ff',border:'1px solid #c3c6d7',borderRadius:'8px',fontSize:'14px',outline:'none',boxSizing:'border-box'}} />
           </div>
           <div>
-            <label style={{display:'block',fontSize:'14px',fontWeight:600,color:'#131b2e',marginBottom:'4px'}}>Role Level *</label>
-            <select value={form.baseLevel} onChange={e => setForm({...form, baseLevel: e.target.value})}
+            <label style={{display:'block',fontSize:'14px',fontWeight:600,color:'#131b2e',marginBottom:'4px'}}>Role *</label>
+            <select value={form.roleId} onChange={e => setForm({...form, roleId: e.target.value})}
               style={{width:'100%',padding:'8px 12px',backgroundColor:'#f2f3ff',border:'1px solid #c3c6d7',borderRadius:'8px',fontSize:'14px',outline:'none',boxSizing:'border-box',cursor:'pointer'}}>
-              <option value="MEMBER">Member</option>
-              <option value="MANAGER">Manager</option>
+              <option value="" disabled>Select a role...</option>
+              {roles.map(r => (
+                <option key={r.id} value={r.id}>{r.name} (Level: {r.level})</option>
+              ))}
             </select>
           </div>
           <div>
@@ -90,7 +109,7 @@ export default function InviteUserModal({ onClose, onSuccess }: Props) {
               {departments.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
             </select>
           </div>
-          {form.baseLevel === 'MEMBER' && (
+          {selectedRole?.baseLevel === 'MEMBER' && (
             <div>
               <label style={{display:'block',fontSize:'14px',fontWeight:600,color:'#131b2e',marginBottom:'4px'}}>Manager</label>
               <select value={form.managerId} onChange={e => setForm({...form, managerId: e.target.value})}
@@ -104,7 +123,7 @@ export default function InviteUserModal({ onClose, onSuccess }: Props) {
             <button onClick={onClose} disabled={loading} style={{padding:'10px 16px',borderRadius:'8px',border:'1px solid #c3c6d7',backgroundColor:'white',color:'#131b2e',fontSize:'14px',fontWeight:500,cursor:'pointer'}}>
               Cancel
             </button>
-            <button onClick={handleInvite} disabled={loading || !form.email || !form.name} style={{padding:'10px 16px',borderRadius:'8px',border:'none',backgroundColor:'#2563EB',color:'white',fontSize:'14px',fontWeight:500,cursor:'pointer',opacity:(loading||!form.email||!form.name)?0.6:1}}>
+            <button onClick={handleInvite} disabled={loading || !form.email || !form.name || !form.roleId} style={{padding:'10px 16px',borderRadius:'8px',border:'none',backgroundColor:'#2563EB',color:'white',fontSize:'14px',fontWeight:500,cursor:'pointer',opacity:(loading||!form.email||!form.name||!form.roleId)?0.6:1}}>
               {loading ? 'Sending...' : 'Add User'}
             </button>
           </div>

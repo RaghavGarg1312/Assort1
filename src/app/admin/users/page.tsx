@@ -14,6 +14,7 @@ interface UserItem {
   baseLevel: string;
   status: string;
   manager: { name: string } | null;
+  role: { name: string } | null;
   avatarUrl: string | null;
 }
 
@@ -63,7 +64,7 @@ export default function UsersPage() {
             </select>
           </div>
           <div className="bg-surface-container-lowest border border-outline-variant rounded-xl p-md flex flex-col gap-xs shadow-sm">
-            <label className="font-label-sm text-label-sm text-on-surface-variant px-1 uppercase tracking-wider">Base Level</label>
+            <label className="font-label-sm text-label-sm text-on-surface-variant px-1 uppercase tracking-wider">Role</label>
             <select className="bg-transparent border-none focus:ring-0 text-on-surface font-body-md cursor-pointer">
               <option>All Levels</option>
             </select>
@@ -93,7 +94,7 @@ export default function UsersPage() {
                     <th className="px-lg py-md font-label-md text-label-md text-on-surface-variant">Name</th>
                     <th className="px-lg py-md font-label-md text-label-md text-on-surface-variant">Designation</th>
                     <th className="px-lg py-md font-label-md text-label-md text-on-surface-variant">Department</th>
-                    <th className="px-lg py-md font-label-md text-label-md text-on-surface-variant">Base Level</th>
+                    <th className="px-lg py-md font-label-md text-label-md text-on-surface-variant">Role</th>
                     <th className="px-lg py-md font-label-md text-label-md text-on-surface-variant">Status</th>
                     <th className="px-lg py-md font-label-md text-label-md text-on-surface-variant">Manager</th>
                     <th className="px-lg py-md font-label-md text-label-md text-on-surface-variant text-right">Actions</th>
@@ -120,7 +121,7 @@ export default function UsersPage() {
                       <td className="px-lg py-md font-body-md text-body-md text-on-surface">{u.designation || '-'}</td>
                       <td className="px-lg py-md font-body-md text-body-md text-on-surface">{u.department?.name || '-'}</td>
                       <td className="px-lg py-md">
-                        <span className="px-2.5 py-0.5 rounded-full bg-secondary-fixed text-on-secondary-fixed font-label-sm text-label-sm">{u.baseLevel}</span>
+                        <span className="px-2.5 py-0.5 rounded-full bg-secondary-fixed text-on-secondary-fixed font-label-sm text-label-sm">{u.role?.name || u.baseLevel || '-'}</span>
                       </td>
                       <td className="px-lg py-md">
                         <span className={`flex items-center gap-1.5 px-2.5 py-0.5 rounded-full font-label-sm text-label-sm w-fit ${

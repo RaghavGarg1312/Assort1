@@ -6,7 +6,7 @@ import { Prisma, BaseLevel } from '@prisma/client'
 
 // Which permission codes each base level gets
 const ROLE_PERMISSIONS: Record<string, string[]> = {
-  admin: [
+  'Company Admin': [
     'create_user',
     'edit_user',
     'deactivate_user',
@@ -15,21 +15,6 @@ const ROLE_PERMISSIONS: Record<string, string[]> = {
     'delete_department',
     'view_audit_logs',
     'manage_roles',
-  ],
-  manager: [
-    'create_task',
-    'edit_task',
-    'delete_task',
-    'assign_task',
-    'comment_task',
-    'upload_attachment',
-  ],
-  member: [
-    'comment_task',
-    'upload_attachment',
-  ],
-  viewer: [
-    'comment_task',
   ],
 }
 
@@ -41,10 +26,7 @@ const DEFAULT_TASK_STATUSES = [
 ]
 
 const BASE_LEVEL_MAP: Record<string, BaseLevel> = {
-  admin:   BaseLevel.ADMIN,
-  manager: BaseLevel.MANAGER,
-  member:  BaseLevel.MEMBER,
-  viewer:  BaseLevel.VIEWER,
+  'Company Admin': BaseLevel.ADMIN,
 }
 
 export async function seedNewCompany(tx: Prisma.TransactionClient, companyId: string) {
@@ -58,6 +40,7 @@ export async function seedNewCompany(tx: Prisma.TransactionClient, companyId: st
       data: {
         companyId,
         name:      roleName,
+        level:     0,
         baseLevel: BASE_LEVEL_MAP[roleName],
       },
     })

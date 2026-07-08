@@ -11,7 +11,8 @@ const inviteSchema = z.object({
   name: z.string().optional(),
   designation: z.string().optional(),
   departmentId: z.string().optional(),
-  baseLevel: z.nativeEnum(BaseLevel),
+  baseLevel: z.nativeEnum(BaseLevel).optional(),
+  roleId: z.string().optional(),
   managerId: z.string().optional(),
 });
 
@@ -31,9 +32,38 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Invalid input' }, { status: 400 });
     }
 
-    const { email, name, designation, departmentId, baseLevel, managerId } = parsed.data;
+    const { email, name, designation, departmentId, baseLevel, roleId, managerId } = parsed.data;
 
-    if (baseLevel === BaseLevel.VIEWER) {
+    const [deptCount, roleCount] = await Promise.all([
+      prisma.department.count({ where: { companyId } }),
+      prisma.role.count({ where: { companyId } })
+    ]);
+
+    if (deptCount === 0 || roleCount === 0) {
+      return NextResponse.json(
+        { error: 'Please set up at least one Department and one Role in Company Settings before inviting users.' },
+        { status: 400 }
+      );
+    }
+
+    if (!baseLevel && !roleId) {
+      return NextResponse.json({ error: 'Either baseLevel or roleId must be provided' }, { status: 400 });
+    }
+
+    let role;
+    if (roleId) {
+      role = await prisma.role.findUnique({ where: { id: roleId } });
+    } else if (baseLevel) {
+      role = await prisma.role.findFirst({ where: { companyId, baseLevel } });
+    }
+
+    if (!role || role.companyId !== companyId) {
+      return NextResponse.json({ error: 'Role not found' }, { status: 400 });
+    }
+
+    const actualBaseLevel = role.baseLevel;
+
+    if (actualBaseLevel === BaseLevel.VIEWER) {
       return NextResponse.json({ error: 'Cannot directly invite a VIEWER' }, { status: 400 });
     }
 
@@ -58,14 +88,6 @@ export async function POST(request: Request) {
       if (!dept || dept.companyId !== companyId) {
         return NextResponse.json({ error: 'Invalid department' }, { status: 400 });
       }
-    }
-
-    const role = await prisma.role.findFirst({
-      where: { companyId, baseLevel },
-    });
-
-    if (!role) {
-      return NextResponse.json({ error: 'Role not found for specified baseLevel' }, { status: 500 });
     }
 
     const invite = await prisma.$transaction(async (tx) => {

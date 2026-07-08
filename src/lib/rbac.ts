@@ -4,6 +4,7 @@ import { BaseLevel } from '@prisma/client';
 import { NextResponse } from 'next/server';
 
 const LEVEL_WEIGHTS: Record<BaseLevel, number> = {
+  SUPERADMIN: 50,
   ADMIN: 40,
   MANAGER: 30,
   MEMBER: 20,

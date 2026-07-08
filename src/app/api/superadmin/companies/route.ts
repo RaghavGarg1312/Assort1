@@ -76,7 +76,7 @@ export async function POST(request: Request) {
 
       // 3. Find admin role
       const adminRole = await tx.role.findFirst({
-        where: { companyId: company.id, name: 'admin' },
+        where: { companyId: company.id, name: 'Company Admin' },
       });
 
       if (!adminRole) {

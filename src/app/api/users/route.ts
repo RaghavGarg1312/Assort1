@@ -26,6 +26,7 @@ export async function GET(request: Request) {
         designation: true,
         department: { select: { name: true } },
         manager: { select: { name: true } },
+        role: { select: { name: true } },
         baseLevel: true,
         status: true,
       },
@@ -41,7 +42,8 @@ export async function GET(request: Request) {
 const createUserSchema = z.object({
   name: z.string().min(1),
   email: z.string().email(),
-  baseLevel: z.nativeEnum(BaseLevel),
+  baseLevel: z.nativeEnum(BaseLevel).optional(),
+  roleId: z.string().optional(),
   departmentId: z.string().optional(),
   managerId: z.string().optional(),
   designation: z.string().optional(),
@@ -57,18 +59,47 @@ export async function POST(request: Request) {
     const parsed = createUserSchema.safeParse(body);
     if (!parsed.success) return NextResponse.json({ error: 'Invalid input' }, { status: 400 });
 
-    const { name, email, baseLevel, departmentId, managerId, designation } = parsed.data;
+    const [deptCount, roleCount] = await Promise.all([
+      prisma.department.count({ where: { companyId } }),
+      prisma.role.count({ where: { companyId, name: { not: 'Company Admin' } } })
+    ]);
+
+    if (deptCount === 0 || roleCount === 0) {
+      return NextResponse.json(
+        { error: 'Please set up at least one Department and one Role in Company Settings before adding users.' },
+        { status: 400 }
+      );
+    }
+
+    const { name, email, baseLevel, roleId, departmentId, managerId, designation } = parsed.data;
+
+    if (!baseLevel && !roleId) {
+      return NextResponse.json({ error: 'Either baseLevel or roleId must be provided' }, { status: 400 });
+    }
 
     // Generate password from email prefix
     const emailPrefix = email.split('@')[0];
     const tempPassword = `${emailPrefix}@123`;
     const passwordHash = await hashPassword(tempPassword);
 
-    // Get role for this baseLevel in this company
-    const role = await prisma.role.findFirst({
-      where: { companyId, baseLevel },
-    });
-    if (!role) return NextResponse.json({ error: 'Role not found' }, { status: 500 });
+    let role;
+    if (roleId) {
+      role = await prisma.role.findUnique({ where: { id: roleId } });
+    } else if (baseLevel) {
+      role = await prisma.role.findFirst({ where: { companyId, baseLevel } });
+    }
+
+    if (!role || role.companyId !== companyId) {
+      return NextResponse.json({ error: 'Role not found' }, { status: 400 });
+    }
+
+    const actualBaseLevel = role.baseLevel;
+
+    let departmentName = 'Unassigned';
+    if (departmentId) {
+      const dept = await prisma.department.findUnique({ where: { id: departmentId } });
+      if (dept) departmentName = dept.name;
+    }
 
     // Check email not already taken
     const existing = await prisma.user.findUnique({ where: { email } });
@@ -82,7 +113,7 @@ export async function POST(request: Request) {
           name,
           email,
           passwordHash,
-          baseLevel,
+          baseLevel: actualBaseLevel,
           designation: designation || null,
           departmentId: departmentId || null,
           managerId: managerId || null,
@@ -127,7 +158,8 @@ export async function POST(request: Request) {
             <div style="background: white; border: 1px solid #c3c6d7; border-radius: 8px; padding: 20px; margin-bottom: 24px;">
               <p style="margin: 0 0 8px; color: #434655; font-size: 14px;"><strong>Email:</strong> ${email}</p>
               <p style="margin: 0 0 8px; color: #434655; font-size: 14px;"><strong>Password:</strong> ${tempPassword}</p>
-              <p style="margin: 0; color: #434655; font-size: 14px;"><strong>Role:</strong> ${baseLevel}</p>
+              <p style="margin: 0 0 8px; color: #434655; font-size: 14px;"><strong>Role:</strong> ${role.name}</p>
+              <p style="margin: 0; color: #434655; font-size: 14px;"><strong>Department:</strong> ${departmentName}</p>
             </div>
             <a href="${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/login" 
               style="display: inline-block; background: #2563EB; color: white; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: 600;">

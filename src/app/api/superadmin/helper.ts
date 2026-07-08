@@ -9,10 +9,10 @@ export async function isSuperadmin(request: Request) {
 
   const user = await prisma.user.findUnique({
     where: { id: userId },
-    select: { companyId: true },
+    select: { companyId: true, baseLevel: true },
   });
 
-  if (!user || user.companyId !== null) {
+  if (!user || user.baseLevel !== 'SUPERADMIN' || user.companyId !== null) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 

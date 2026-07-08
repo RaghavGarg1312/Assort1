@@ -21,6 +21,18 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'No file provided' }, { status: 400 });
     }
 
+    const [deptCount, roleCount] = await Promise.all([
+      prisma.department.count({ where: { companyId } }),
+      prisma.role.count({ where: { companyId, name: { not: 'Company Admin' } } })
+    ]);
+
+    if (deptCount === 0 || roleCount === 0) {
+      return NextResponse.json(
+        { error: 'Please set up at least one Department and one Role in Company Settings before uploading users.' },
+        { status: 400 }
+      );
+    }
+
     const arrayBuffer = await file.arrayBuffer();
     const workbook = xlsx.read(arrayBuffer, { type: 'buffer' });
     const firstSheetName = workbook.SheetNames[0];

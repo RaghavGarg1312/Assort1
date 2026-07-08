@@ -55,6 +55,7 @@ enum InviteStatus {
 }
 
 enum BaseLevel {
+  SUPERADMIN
   ADMIN
   MANAGER
   MEMBER
@@ -153,6 +154,7 @@ model Role {
   companyId String
   company   Company   @relation(fields: [companyId], references: [id])
   name      String    
+  level     Int       @default(1)
   baseLevel BaseLevel 
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
