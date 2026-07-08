@@ -212,9 +212,9 @@ export default function TaskDetailPage() {
                           Due: {new Date(m.dueDate).toLocaleDateString()}
                           {m.isOverdue && <span style={{color:'#e11d48',marginLeft:'8px',fontWeight:600}}>Overdue</span>}
                         </div>
-                        {m.status === 'SUBMITTED' && m.submissions?.[0]?.note && (
+                        {m.submissions?.[0]?.note && (
                           <div style={{fontSize:'12px',color:'#434655',marginTop:'8px',padding:'8px',backgroundColor:'white',borderRadius:'4px',border:'1px solid #e2e8f0'}}>
-                            <strong>Note:</strong> {m.submissions[0].note}
+                            <strong>Submission Note:</strong> {m.submissions[0].note}
                           </div>
                         )}
                       </div>
