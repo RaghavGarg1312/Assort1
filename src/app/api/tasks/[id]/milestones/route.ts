@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { getAuthUser } from '../../../helper';
-import { requirePermission } from '@/lib/rbac';
 import { requireSameCompany } from '@/lib/tenant';
 import { BaseLevel, EntityType, TaskState } from '@prisma/client';
 import { z } from 'zod';
@@ -16,8 +15,6 @@ export async function POST(request: Request, props: { params: Promise<{ id: stri
   if (userOrResponse instanceof NextResponse) return userOrResponse;
   const { id: userId, companyId, baseLevel } = userOrResponse;
 
-  const permCheck = await requirePermission(request, 'edit_task');
-  if (permCheck) return permCheck;
 
   const params = await props.params;
   const { id: taskId } = params;

@@ -129,6 +129,7 @@ export default function TaskDetailPage() {
   };
 
   const isManagerOrAdmin = user?.baseLevel === 'MANAGER' || user?.baseLevel === 'ADMIN';
+  const canManageMilestones = task?.createdById === user?.id || isManagerOrAdmin;
 
   if (loading) return <Shell><div style={{padding:'32px',color:'#434655'}}>Loading...</div></Shell>;
   if (error || !task) return <Shell><div style={{padding:'32px',color:'#e11d48'}}>{error || 'Task not found'}</div></Shell>;
@@ -170,7 +171,7 @@ export default function TaskDetailPage() {
             <div style={{backgroundColor:'white',border:'1px solid #c3c6d7',borderRadius:'12px',padding:'24px',boxShadow:'0 1px 3px rgba(0,0,0,0.08)'}}>
               <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'16px'}}>
                 <h2 style={{fontSize:'18px',fontWeight:600,color:'#131b2e',margin:0}}>Milestones</h2>
-                {isManagerOrAdmin && (
+                {canManageMilestones && (
                   <button onClick={() => setShowAddMilestone(!showAddMilestone)}
                     style={{padding:'6px 14px',backgroundColor:'#2563EB',color:'white',border:'none',borderRadius:'8px',fontSize:'13px',fontWeight:500,cursor:'pointer'}}>
                     + Add Milestone
@@ -210,6 +211,11 @@ export default function TaskDetailPage() {
                           Due: {new Date(m.dueDate).toLocaleDateString()}
                           {m.isOverdue && <span style={{color:'#e11d48',marginLeft:'8px',fontWeight:600}}>Overdue</span>}
                         </div>
+                        {m.status === 'SUBMITTED' && m.submissions?.[0]?.note && (
+                          <div style={{fontSize:'12px',color:'#434655',marginTop:'8px',padding:'8px',backgroundColor:'white',borderRadius:'4px',border:'1px solid #e2e8f0'}}>
+                            <strong>Note:</strong> {m.submissions[0].note}
+                          </div>
+                        )}
                       </div>
                       <div style={{display:'flex',alignItems:'center',gap:'12px'}}>
                         <span style={{...milestoneStatusStyle(m.status),padding:'3px 10px',borderRadius:'999px',fontSize:'11px',fontWeight:600}}>{m.status}</span>
@@ -219,7 +225,7 @@ export default function TaskDetailPage() {
                             Submit
                           </button>
                         )}
-                        {m.status === 'SUBMITTED' && isManagerOrAdmin && (
+                        {m.status === 'SUBMITTED' && canManageMilestones && (
                           <div style={{display:'flex',gap:'8px'}}>
                             <button onClick={() => handleMilestoneReview(m.id, 'approve')}
                               style={{padding:'6px 14px',backgroundColor:'#059669',color:'white',border:'none',borderRadius:'8px',fontSize:'12px',cursor:'pointer'}}>

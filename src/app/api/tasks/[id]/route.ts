@@ -30,6 +30,7 @@ export async function GET(request: Request, props: { params: Promise<{ id: strin
         department: true,
         milestones: {
           orderBy: { position: 'asc' },
+          include: { submissions: { orderBy: { createdAt: 'desc' }, take: 1 } },
         },
       },
     });

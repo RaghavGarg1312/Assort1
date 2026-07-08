@@ -8,20 +8,46 @@ interface Props {
 
 export default function TaskCreationModal({ onClose, onSuccess }: Props) {
   const [form, setForm] = useState({ title: '', description: '', priority: 'MEDIUM', dueDate: '', assigneeId: '', statusId: '', departmentId: '' });
-  const [assignees, setAssignees] = useState<any[]>([]);
+  const [allUsers, setAllUsers] = useState<any[]>([]);
+  const [departments, setDepartments] = useState<any[]>([]);
   const [statuses, setStatuses] = useState<any[]>([]);
+  const [currentUser, setCurrentUser] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
   useEffect(() => {
-    fetch('/api/users?baseLevel=MEMBER').then(r => r.json()).then(data => setAssignees(data.users || data || []));
-    fetch('/api/task-statuses').then(r => r.json()).then(data => {
-      const list = data.statuses || data || [];
+    Promise.all([
+      fetch('/api/users').then(r => r.json()),
+      fetch('/api/departments').then(r => r.json()),
+      fetch('/api/task-statuses').then(r => r.json()),
+      fetch('/api/auth/me').then(r => r.json())
+    ]).then(([usersData, deptsData, statusData, authData]) => {
+      setAllUsers(usersData.users || usersData || []);
+      setDepartments(deptsData.departments || deptsData || []);
+      
+      const list = statusData.statuses || statusData || [];
       setStatuses(list);
-      if (list.length > 0) setForm(f => ({ ...f, statusId: list[0].id }));
-    });
 
+      const me = authData.user;
+      if (me) setCurrentUser(me);
+
+      setForm(f => ({ 
+        ...f, 
+        statusId: list.length > 0 ? list[0].id : '',
+        departmentId: me?.departmentId || ''
+      }));
+    }).catch(e => console.error(e));
   }, []);
+
+  const filteredAssignees = allUsers.filter(u => {
+    if (form.departmentId && u.departmentId !== form.departmentId) return false;
+    if (currentUser && currentUser.id === u.id) return false;
+    if (currentUser && currentUser.role?.level !== undefined && u.role?.level !== undefined) {
+      // Lower level number = more senior. Assigner cannot assign to someone more senior.
+      if (u.role.level < currentUser.role.level) return false;
+    }
+    return true;
+  });
 
   const handleSubmit = async () => {
     if (!form.title || !form.dueDate || !form.assigneeId) { setError('Title, due date and assignee are required'); return; }
@@ -89,13 +115,23 @@ export default function TaskCreationModal({ onClose, onSuccess }: Props) {
                 style={{width:'100%',padding:'8px 12px',backgroundColor:'#f2f3ff',border:'1px solid #c3c6d7',borderRadius:'8px',fontSize:'14px',outline:'none',boxSizing:'border-box'}} />
             </div>
           </div>
-          <div>
-            <label style={{display:'block',fontSize:'14px',fontWeight:600,color:'#131b2e',marginBottom:'4px'}}>Assign To *</label>
-            <select value={form.assigneeId} onChange={e => setForm({...form, assigneeId: e.target.value})}
-              style={{width:'100%',padding:'8px 12px',backgroundColor:'#f2f3ff',border:'1px solid #c3c6d7',borderRadius:'8px',fontSize:'14px',outline:'none',boxSizing:'border-box',cursor:'pointer'}}>
-              <option value="">Select a member...</option>
-              {assignees.map(a => <option key={a.id} value={a.id}>{a.name} — {a.email}</option>)}
-            </select>
+          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'16px'}}>
+            <div>
+              <label style={{display:'block',fontSize:'14px',fontWeight:600,color:'#131b2e',marginBottom:'4px'}}>Department *</label>
+              <select value={form.departmentId} onChange={e => setForm({...form, departmentId: e.target.value, assigneeId: ''})}
+                style={{width:'100%',padding:'8px 12px',backgroundColor:'#f2f3ff',border:'1px solid #c3c6d7',borderRadius:'8px',fontSize:'14px',outline:'none',boxSizing:'border-box',cursor:'pointer'}}>
+                <option value="">Select Department...</option>
+                {departments.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
+              </select>
+            </div>
+            <div>
+              <label style={{display:'block',fontSize:'14px',fontWeight:600,color:'#131b2e',marginBottom:'4px'}}>Assign To *</label>
+              <select value={form.assigneeId} onChange={e => setForm({...form, assigneeId: e.target.value})} disabled={!form.departmentId}
+                style={{width:'100%',padding:'8px 12px',backgroundColor:form.departmentId?'#f2f3ff':'#e2e4ef',border:'1px solid #c3c6d7',borderRadius:'8px',fontSize:'14px',outline:'none',boxSizing:'border-box',cursor:form.departmentId?'pointer':'not-allowed'}}>
+                <option value="">{form.departmentId ? 'Select a member...' : 'Select dept first'}</option>
+                {filteredAssignees.map(a => <option key={a.id} value={a.id}>{a.name} — {a.role?.name || a.baseLevel}</option>)}
+              </select>
+            </div>
           </div>
           <div>
             <label style={{display:'block',fontSize:'14px',fontWeight:600,color:'#131b2e',marginBottom:'4px'}}>Initial Status</label>

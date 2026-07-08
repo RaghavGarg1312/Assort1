@@ -24,6 +24,7 @@ export async function GET(request: NextRequest) {
         name: true,
         companyId: true,
         roleId: true,
+        role: { select: { level: true } },
         baseLevel: true,
         departmentId: true,
         designation: true,
