@@ -270,6 +270,7 @@ model User {
   googleId     String?     @unique
   avatarUrl    String?
   designation  String? 
+  customManagerName String?
   status       UserStatus  @default(ACTIVE)
   baseLevel    BaseLevel  
   emailVerified Boolean     @default(false)

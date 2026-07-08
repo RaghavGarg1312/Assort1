@@ -11,6 +11,46 @@ const editDeptSchema = z.object({
   headUserId: z.string().nullable().optional(),
 });
 
+export async function GET(request: Request, props: { params: Promise<{ id: string }> }) {
+  const userOrResponse = await getAuthUser(request);
+  if (userOrResponse instanceof NextResponse) return userOrResponse;
+  const { id: userId, companyId } = userOrResponse;
+
+  const params = await props.params;
+  const { id } = params;
+
+  try {
+    const department = await prisma.department.findUnique({
+      where: { id },
+      include: {
+        head: { select: { id: true, name: true, email: true } },
+        users: {
+          where: { status: 'ACTIVE' },
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            designation: true,
+            managerId: true,
+            role: { select: { id: true, name: true, level: true } }
+          },
+          orderBy: [
+            { role: { level: 'asc' } },
+            { name: 'asc' }
+          ]
+        }
+      }
+    });
+
+    if (!department) return NextResponse.json({ error: 'Department not found' }, { status: 404 });
+    await requireSameCompany(userId, department.companyId);
+
+    return NextResponse.json(department);
+  } catch (error) {
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+  }
+}
+
 export async function PATCH(request: Request, props: { params: Promise<{ id: string }> }) {
   const userOrResponse = await getAuthUser(request);
   if (userOrResponse instanceof NextResponse) return userOrResponse;

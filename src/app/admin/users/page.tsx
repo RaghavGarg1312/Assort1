@@ -22,6 +22,17 @@ export default function UsersPage() {
   const [users, setUsers] = useState<UserItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [isInviteOpen, setIsInviteOpen] = useState(false);
+  const [editingUser, setEditingUser] = useState<UserItem | null>(null);
+
+  const openInviteModal = () => {
+    setEditingUser(null);
+    setIsInviteOpen(true);
+  };
+
+  const openEditModal = (u: UserItem) => {
+    setEditingUser(u);
+    setIsInviteOpen(true);
+  };
 
   const fetchUsers = () => {
     setLoading(true);
@@ -49,7 +60,7 @@ export default function UsersPage() {
               <svg xmlns="http://www.w3.org/2000/svg" height="24" viewBox="0 -960 960 960" width="24" fill="currentColor" className="text-[20px]"><path d="M440-320v-326L336-542l-56-58 200-200 200 200-56 58-104-104v326h-80ZM240-160q-33 0-56.5-23.5T160-240v-120h80v120h480v-120h80v120q0 33-23.5 56.5T720-160H240Z"/></svg>
               <span className="font-label-md text-label-md">Bulk Upload</span>
             </Link>
-            <button onClick={() => setIsInviteOpen(true)} className="flex items-center gap-sm px-lg py-2.5 bg-primary-container text-white font-semibold rounded-lg hover:shadow-lg active:scale-95 transition-all">
+            <button onClick={openInviteModal} className="flex items-center gap-sm px-lg py-2.5 bg-primary-container text-white font-semibold rounded-lg hover:shadow-lg active:scale-95 transition-all">
               <svg xmlns="http://www.w3.org/2000/svg" height="24" viewBox="0 -960 960 960" width="24" fill="currentColor" className="text-[20px]"><path d="M720-400v-120H600v-80h120v-120h80v120h120v80H800v120h-80ZM247-527q-47-47-47-113t47-113q47-47 113-47t113 47q47 47 47 113t-47 113q-47 47-113 47t-113-47ZM40-160v-112q0-34 17.5-62.5T104-378q62-31 126-46.5T360-440q66 0 130 15.5T616-378q29 15 46.5 43.5T680-272v112H40Zm80-80h480v-32q0-11-5.5-20T580-306q-54-27-109-40.5T360-360q-56 0-111 13.5T140-306q-9 5-14.5 14t-5.5 20v32Zm296.5-343.5Q440-607 440-640t-23.5-56.5Q393-720 360-720t-56.5 23.5Q280-673 280-640t23.5 56.5Q327-560 360-560t56.5-23.5ZM360-640Zm0 400Z"/></svg>
               <span className="font-label-md text-label-md">Invite User</span>
             </button>
@@ -134,7 +145,7 @@ export default function UsersPage() {
                       <td className="px-lg py-md font-body-md text-body-md text-on-surface">{u.manager?.name || 'Self'}</td>
                       <td className="px-lg py-md text-right">
                         <div className="flex justify-end gap-1">
-                          <button className="p-2 text-outline hover:text-primary hover:bg-primary-fixed rounded-lg transition-all">
+                          <button onClick={() => openEditModal(u)} className="p-2 text-outline hover:text-primary hover:bg-primary-fixed rounded-lg transition-all">
                             <svg xmlns="http://www.w3.org/2000/svg" height="24" viewBox="0 -960 960 960" width="24" fill="currentColor" className="text-[20px]"><path d="M200-200h57l391-391-57-57-391 391v57Zm-80 80v-170l528-527q12-11 26.5-17t30.5-6q16 0 31 6t26 18l55 56q12 11 17.5 26t5.5 30q0 16-5.5 30.5T817-647L290-120H120Zm640-584-56-56 56 56Zm-141 85-28-29 57 57-29-28Z"/></svg>
                           </button>
                           <button className="p-2 text-outline hover:text-error hover:bg-error-container rounded-lg transition-all">
@@ -161,7 +172,7 @@ export default function UsersPage() {
       </div>
       
       {isInviteOpen && (
-        <InviteUserModal onClose={() => setIsInviteOpen(false)} onSuccess={() => { setIsInviteOpen(false); fetchUsers(); }} />
+        <InviteUserModal onClose={() => setIsInviteOpen(false)} onSuccess={() => { setIsInviteOpen(false); fetchUsers(); }} editingUser={editingUser} />
       )}
     </Shell>
   );

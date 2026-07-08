@@ -24,9 +24,13 @@ export async function GET(request: Request) {
         name: true,
         email: true,
         designation: true,
-        department: { select: { name: true } },
-        manager: { select: { name: true } },
-        role: { select: { name: true } },
+        departmentId: true,
+        department: { select: { id: true, name: true } },
+        managerId: true,
+        customManagerName: true,
+        manager: { select: { id: true, name: true } },
+        roleId: true,
+        role: { select: { id: true, name: true, level: true } },
         baseLevel: true,
         status: true,
       },
@@ -46,6 +50,7 @@ const createUserSchema = z.object({
   roleId: z.string().optional(),
   departmentId: z.string().optional(),
   managerId: z.string().optional(),
+  customManagerName: z.string().optional(),
   designation: z.string().optional(),
 });
 
@@ -71,7 +76,7 @@ export async function POST(request: Request) {
       );
     }
 
-    const { name, email, baseLevel, roleId, departmentId, managerId, designation } = parsed.data;
+    const { name, email, baseLevel, roleId, departmentId, managerId, customManagerName, designation } = parsed.data;
 
     if (!baseLevel && !roleId) {
       return NextResponse.json({ error: 'Either baseLevel or roleId must be provided' }, { status: 400 });
@@ -95,6 +100,19 @@ export async function POST(request: Request) {
 
     const actualBaseLevel = role.baseLevel;
 
+    if (managerId) {
+      const manager = await prisma.user.findUnique({
+        where: { id: managerId },
+        include: { role: true },
+      });
+      if (!manager || manager.companyId !== companyId) {
+        return NextResponse.json({ error: 'Manager not found' }, { status: 400 });
+      }
+      if (manager.role && manager.role.level >= role.level) {
+        return NextResponse.json({ error: 'Manager must be more senior than the user being created' }, { status: 400 });
+      }
+    }
+
     let departmentName = 'Unassigned';
     if (departmentId) {
       const dept = await prisma.department.findUnique({ where: { id: departmentId } });
@@ -117,6 +135,7 @@ export async function POST(request: Request) {
           designation: designation || null,
           departmentId: departmentId || null,
           managerId: managerId || null,
+          customManagerName: customManagerName || null,
           status: UserStatus.ACTIVE,
         },
       });

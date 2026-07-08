@@ -1,9 +1,11 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import Shell from '@/components/layout/Shell';
 
 export default function DepartmentsPage() {
+  const router = useRouter();
   const [depts, setDepts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -88,7 +90,9 @@ export default function DepartmentsPage() {
                   No departments found.
                </div>
             ) : depts.map(d => (
-               <div key={d.id} className="bg-surface-container-lowest p-lg rounded-xl border border-outline-variant shadow-sm flex flex-col hover:shadow-md transition-shadow">
+               <div key={d.id} 
+                    onClick={() => router.push(`/admin/departments/${d.id}`)}
+                    className="bg-surface-container-lowest p-lg rounded-xl border border-outline-variant shadow-sm flex flex-col hover:shadow-md transition-shadow cursor-pointer">
                   <h3 className="text-h3 font-h3 text-on-surface flex items-center justify-between">
                      {d.name}
                      <svg xmlns="http://www.w3.org/2000/svg" height="24" viewBox="0 -960 960 960" width="24" fill="currentColor" className="text-outline"><path d="M80-120v-720h400v160h400v560H80Zm80-80h80v-80h-80v80Zm0-160h80v-80h-80v80Zm0-160h80v-80h-80v80Zm0-160h80v-80h-80v80Zm160 480h80v-80h-80v80Zm0-160h80v-80h-80v80Zm0-160h80v-80h-80v80Zm0-160h80v-80h-80v80Zm160 480h320v-400H480v80h80v80h-80v80h80v80h-80v80Zm160-240v-80h80v80h-80Zm0 160v-80h80v80h-80Z"/></svg>
@@ -103,13 +107,13 @@ export default function DepartmentsPage() {
                   </p>
                   <div className="mt-auto pt-lg flex gap-sm justify-end border-t border-outline-variant mt-md">
                      <button
-                       onClick={() => { setEditingDept(d); setFormName(d.name); setModalError(''); setShowCreateModal(true) }}
+                       onClick={(e) => { e.stopPropagation(); setEditingDept(d); setFormName(d.name); setModalError(''); setShowCreateModal(true) }}
                        className="px-sm py-1 border border-outline-variant rounded text-on-surface hover:bg-surface-container-low font-label-sm transition-colors"
                      >
                        Edit
                      </button>
                      <button
-                       onClick={() => setConfirmDelete({ open: true, id: d.id, name: d.name })}
+                       onClick={(e) => { e.stopPropagation(); setConfirmDelete({ open: true, id: d.id, name: d.name }) }}
                        className="px-sm py-1 border border-error text-error rounded hover:bg-error-container font-label-sm transition-colors"
                      >
                        Delete

@@ -8,9 +8,9 @@ import { z } from 'zod';
 
 const editUserSchema = z.object({
   name: z.string().optional(),
-  designation: z.string().nullable().optional(),
   departmentId: z.string().nullable().optional(),
   managerId: z.string().nullable().optional(),
+  customManagerName: z.string().nullable().optional(),
   baseLevel: z.nativeEnum(BaseLevel).optional(),
   roleId: z.string().nullable().optional(),
 });
@@ -69,9 +69,17 @@ export async function PATCH(request: Request, props: { params: Promise<{ id: str
     }
 
     if (data.managerId) {
-      const manager = await prisma.user.findUnique({ where: { id: data.managerId } });
+      const manager = await prisma.user.findUnique({ where: { id: data.managerId }, include: { role: true } });
       if (!manager || manager.companyId !== companyId) {
         return NextResponse.json({ error: 'Invalid manager' }, { status: 400 });
+      }
+      
+      const newRoleId = data.roleId || user.roleId;
+      if (newRoleId) {
+        const newUserRole = await prisma.role.findUnique({ where: { id: newRoleId } });
+        if (manager.role && newUserRole && manager.role.level >= newUserRole.level) {
+          return NextResponse.json({ error: 'Manager must be more senior than the user' }, { status: 400 });
+        }
       }
     }
 

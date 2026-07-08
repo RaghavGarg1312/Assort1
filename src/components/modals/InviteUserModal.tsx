@@ -4,15 +4,58 @@ import { useState, useEffect } from 'react';
 interface Props {
   onClose: () => void;
   onSuccess: () => void;
+  editingUser?: any;
 }
 
-export default function InviteUserModal({ onClose, onSuccess }: Props) {
-  const [form, setForm] = useState({ email: '', name: '', roleId: '', departmentId: '', managerId: '', designation: '' });
+export default function InviteUserModal({ onClose, onSuccess, editingUser }: Props) {
+  const [form, setForm] = useState({ 
+    email: editingUser?.email || '', 
+    name: editingUser?.name || '', 
+    roleId: editingUser?.role?.id || editingUser?.roleId || '', 
+    departmentId: editingUser?.department?.id || editingUser?.departmentId || '', 
+    managerId: editingUser?.manager?.id || editingUser?.managerId || '', 
+    customManagerName: editingUser?.customManagerName || '' 
+  });
   const [departments, setDepartments] = useState<any[]>([]);
   const [roles, setRoles] = useState<any[]>([]);
   const [managers, setManagers] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+
+  // Re-sync form state once reference data is fully loaded
+  useEffect(() => {
+    if (editingUser) {
+      setForm(prev => {
+        let newRoleId = prev.roleId;
+        if (!newRoleId && editingUser.role?.name) {
+          const matchedRole = roles.find(r => r.name === editingUser.role.name);
+          if (matchedRole) newRoleId = matchedRole.id;
+        }
+
+        let newDeptId = prev.departmentId;
+        if (!newDeptId && editingUser.department?.name) {
+          const matchedDept = departments.find(d => d.name === editingUser.department.name);
+          if (matchedDept) newDeptId = matchedDept.id;
+        }
+
+        let newManagerId = prev.managerId;
+        if (editingUser.customManagerName) {
+          newManagerId = 'OTHER';
+        } else if (!newManagerId && editingUser.manager?.name) {
+          const matchedManager = managers.find(m => m.name === editingUser.manager.name);
+          if (matchedManager) newManagerId = matchedManager.id;
+        }
+
+        return {
+          ...prev,
+          roleId: newRoleId || prev.roleId,
+          departmentId: newDeptId || prev.departmentId,
+          managerId: newManagerId || prev.managerId,
+          customManagerName: editingUser.customManagerName || prev.customManagerName
+        };
+      });
+    }
+  }, [editingUser, roles, departments, managers]);
 
   useEffect(() => {
     fetch('/api/departments').then(r => r.json()).then(data => {
@@ -22,13 +65,11 @@ export default function InviteUserModal({ onClose, onSuccess }: Props) {
     fetch('/api/roles').then(r => r.json()).then(data => {
        const fetchedRoles = Array.isArray(data) ? data : [];
        setRoles(fetchedRoles);
-       if (fetchedRoles.length > 0) {
-          setForm(f => ({ ...f, roleId: fetchedRoles[0].id }));
-       }
     }).catch(() => setRoles([]));
 
-    fetch('/api/users?baseLevel=MANAGER').then(r => r.json()).then(data => {
-      setManagers(Array.isArray(data) ? data : (data?.users || []));
+    fetch('/api/users').then(r => r.json()).then(data => {
+      const fetchedUsers = Array.isArray(data) ? data : (data?.users || []);
+      setManagers(fetchedUsers);
     }).catch(() => setManagers([]));
   }, []);
 
@@ -44,15 +85,18 @@ export default function InviteUserModal({ onClose, onSuccess }: Props) {
         roleId: form.roleId,
       };
       if (form.departmentId) body.departmentId = form.departmentId;
-      if (form.managerId) body.managerId = form.managerId;
-      if (form.designation) body.designation = form.designation;
-      const res = await fetch('/api/users', {
-        method: 'POST',
+      if (form.managerId && form.managerId !== 'OTHER') body.managerId = form.managerId;
+      if (form.managerId === 'OTHER' && form.customManagerName) body.customManagerName = form.customManagerName;
+      const method = editingUser ? 'PATCH' : 'POST';
+      const endpoint = editingUser ? `/api/users/${editingUser.id}` : '/api/users';
+      
+      const res = await fetch(endpoint, {
+        method,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body)
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Failed to add user');
+      if (!res.ok) throw new Error(data.error || `Failed to ${editingUser ? 'update' : 'add'} user`);
       onSuccess();
     } catch (e: any) {
       setError(e.message);
@@ -62,12 +106,19 @@ export default function InviteUserModal({ onClose, onSuccess }: Props) {
   };
 
   const selectedRole = Array.isArray(roles) ? roles.find(r => r.id === form.roleId) : undefined;
+  const availableManagers = Array.isArray(managers) && selectedRole && form.departmentId 
+    ? managers.filter(u => 
+        u.departmentId === form.departmentId && 
+        u.role && u.role.level < selectedRole.level && 
+        u.baseLevel !== 'ADMIN'
+      ) 
+    : [];
 
   return (
     <div style={{position:'fixed',inset:0,backgroundColor:'rgba(0,0,0,0.5)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:9999}}>
       <div style={{backgroundColor:'white',borderRadius:'12px',boxShadow:'0 20px 60px rgba(0,0,0,0.3)',width:'100%',maxWidth:'480px',margin:'0 16px',maxHeight:'90vh',overflowY:'auto'}}>
         <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'20px 24px',borderBottom:'1px solid #c3c6d7'}}>
-          <h3 style={{fontSize:'18px',fontWeight:700,color:'#131b2e',margin:0}}>Add User</h3>
+          <h3 style={{fontSize:'18px',fontWeight:700,color:'#131b2e',margin:0}}>{editingUser ? 'Edit User' : 'Add User'}</h3>
           <button onClick={onClose} style={{background:'none',border:'none',cursor:'pointer',color:'#434655'}}>
             <svg xmlns="http://www.w3.org/2000/svg" height="24" viewBox="0 -960 960 960" width="24" fill="currentColor"><path d="m256-200-56-56 224-224-224-224 56-56 224 224 224-224 56 56-224 224 224 224-56 56-224-224-224 224Z"/></svg>
           </button>
@@ -97,11 +148,6 @@ export default function InviteUserModal({ onClose, onSuccess }: Props) {
             </select>
           </div>
           <div>
-            <label style={{display:'block',fontSize:'14px',fontWeight:600,color:'#131b2e',marginBottom:'4px'}}>Designation <span style={{color:'#434655',fontWeight:400}}>(Optional)</span></label>
-            <input type="text" value={form.designation || ''} onChange={e => setForm({...form, designation: e.target.value})} placeholder="e.g. Senior Engineer, Team Lead, Analyst"
-              style={{width:'100%',padding:'8px 12px',backgroundColor:'#f2f3ff',border:'1px solid #c3c6d7',borderRadius:'8px',fontSize:'14px',outline:'none',boxSizing:'border-box'}} />
-          </div>
-          <div>
             <label style={{display:'block',fontSize:'14px',fontWeight:600,color:'#131b2e',marginBottom:'4px'}}>Department</label>
             <select value={form.departmentId} onChange={e => setForm({...form, departmentId: e.target.value})}
               style={{width:'100%',padding:'8px 12px',backgroundColor:'#f2f3ff',border:'1px solid #c3c6d7',borderRadius:'8px',fontSize:'14px',outline:'none',boxSizing:'border-box',cursor:'pointer'}}>
@@ -109,22 +155,38 @@ export default function InviteUserModal({ onClose, onSuccess }: Props) {
               {departments.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
             </select>
           </div>
-          {selectedRole?.baseLevel === 'MEMBER' && (
-            <div>
-              <label style={{display:'block',fontSize:'14px',fontWeight:600,color:'#131b2e',marginBottom:'4px'}}>Manager</label>
-              <select value={form.managerId} onChange={e => setForm({...form, managerId: e.target.value})}
+          <div>
+            <label style={{display:'block',fontSize:'14px',fontWeight:600,color:'#131b2e',marginBottom:'4px'}}>Managed By</label>
+            {form.managerId === 'OTHER' ? (
+              <div style={{display:'flex',gap:'8px'}}>
+                <input type="text" value={form.customManagerName} onChange={e => setForm({...form, customManagerName: e.target.value})} placeholder="Type manager name..."
+                  style={{flex:1,padding:'8px 12px',backgroundColor:'#f2f3ff',border:'1px solid #c3c6d7',borderRadius:'8px',fontSize:'14px',outline:'none',boxSizing:'border-box'}} />
+                <button onClick={() => setForm({...form, managerId: '', customManagerName: ''})}
+                  style={{padding:'0 12px',backgroundColor:'#fef2f2',border:'1px solid #fecaca',color:'#b91c1c',borderRadius:'8px',cursor:'pointer',fontSize:'14px',fontWeight:600}}>
+                  ✕
+                </button>
+              </div>
+            ) : (
+              <select value={form.managerId} onChange={e => setForm({...form, managerId: e.target.value, customManagerName: e.target.value === 'OTHER' ? form.customManagerName : ''})}
                 style={{width:'100%',padding:'8px 12px',backgroundColor:'#f2f3ff',border:'1px solid #c3c6d7',borderRadius:'8px',fontSize:'14px',outline:'none',boxSizing:'border-box',cursor:'pointer'}}>
-                <option value="">No Manager</option>
-                {managers.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
+                {!form.departmentId ? (
+                  <option value="">Select a department first...</option>
+                ) : (
+                  <>
+                    <option value="">No Manager</option>
+                    {availableManagers.map(m => <option key={m.id} value={m.id}>{m.name} ({m.role?.name})</option>)}
+                    <option value="OTHER">Other (type manually)...</option>
+                  </>
+                )}
               </select>
-            </div>
-          )}
+            )}
+          </div>
           <div style={{display:'flex',justifyContent:'flex-end',gap:'12px',paddingTop:'8px'}}>
             <button onClick={onClose} disabled={loading} style={{padding:'10px 16px',borderRadius:'8px',border:'1px solid #c3c6d7',backgroundColor:'white',color:'#131b2e',fontSize:'14px',fontWeight:500,cursor:'pointer'}}>
               Cancel
             </button>
             <button onClick={handleInvite} disabled={loading || !form.email || !form.name || !form.roleId} style={{padding:'10px 16px',borderRadius:'8px',border:'none',backgroundColor:'#2563EB',color:'white',fontSize:'14px',fontWeight:500,cursor:'pointer',opacity:(loading||!form.email||!form.name||!form.roleId)?0.6:1}}>
-              {loading ? 'Sending...' : 'Add User'}
+              {loading ? (editingUser ? 'Saving...' : 'Sending...') : (editingUser ? 'Save Changes' : 'Add User')}
             </button>
           </div>
         </div>
